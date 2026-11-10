@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blend Mode Lab</title>
+<style>
+:root{--bg:#f3f1ee;--panel:#fff;--ink:#1d1b1a;--mute:#6b6661;--line:#d9d4ce;--accent:#1f5fd6;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16151a;--panel:#1f1e25;--ink:#ece9e4;--mute:#9a958e;--line:#34323c;--accent:#7da6ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16151a;--panel:#1f1e25;--ink:#ece9e4;--mute:#9a958e;--line:#34323c;--accent:#7da6ff;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Avenir Next","Segoe UI",system-ui,sans-serif}
+main{max-width:1060px;margin:0 auto;padding:20px 16px 40px}
+h1{font:700 2rem/1.1 "Avenir Next","Segoe UI",sans-serif;letter-spacing:-.02em;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 18px;max-width:60ch}
+.lab{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:780px){.lab{grid-template-columns:1fr}}
+.stage{aspect-ratio:4/3;border-radius:10px;overflow:hidden;position:relative;isolation:isolate;border:1px solid var(--line)}
+.layer{position:absolute;inset:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.panel h2{font-size:1rem;margin:0 0 8px}
+label{display:block;font-size:.85rem;color:var(--mute);margin:8px 0 3px}
+select,input[type=range]{width:100%}
+select{padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+.row{display:flex;gap:8px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button,.btn{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:5px 10px;font:inherit;font-size:.85rem;cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=color]{width:42px;height:32px;border:1px solid var(--line);border-radius:6px;padding:0;background:none}
+.desc{font-size:.92rem}.desc b{font-size:1.05rem}
+.desc code{display:block;margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:6px;font-size:.8rem;overflow-x:auto}
+.all{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px}
+.all button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--ink);font:inherit;font-size:.8rem;cursor:pointer;text-align:left}
+.all button[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.thumb{aspect-ratio:4/3;border-radius:5px;position:relative;isolation:isolate;overflow:hidden;margin-bottom:4px}
+</style>
+</head>
+<body>
+<main>
+<h1>Blend Mode Lab</h1>
+<p class="sub">Stack a blend layer on top of a base layer, then change the mode to see how their colors combine. These are the same blend modes used in Photoshop, Illustrator and InDesign.</p>
+
+<div class="lab">
+  <div>
+    <div class="stage" id="stage" role="img" aria-label="Preview of blend layer over base layer">
+      <div class="layer" id="base"></div>
+      <div class="layer" id="top"></div>
+    </div>
+  </div>
+  <div>
+    <div class="panel">
+      <h2>Blend layer (top)</h2>
+      <label for="mode">Blend mode</label>
+      <select id="mode"></select>
+      <label for="op">Opacity: <span id="opv">100</span>%</label>
+      <input type="range" id="op" min="0" max="100" value="100">
+      <label>Content</label>
+      <div class="chips" id="topChips"></div>
+      <div class="row" style="margin-top:8px"><input type="color" id="topColor" value="#ff7a2f" aria-label="Top solid color"><span class="sub" style="margin:0;font-size:.85rem">Used by “Solid”</span></div>
+    </div>
+    <div class="panel">
+      <h2>Base layer (bottom)</h2>
+      <div class="chips" id="baseChips"></div>
+      <div class="row" style="margin-top:8px"><input type="color" id="baseColor" value="#2a6fb0" aria-label="Base solid color"><button class="btn" id="swap">Swap layers</button></div>
+    </div>
+    <div class="panel desc" id="desc"></div>
+  </div>
+</div>
+
+<h2 style="margin:20px 0 0;font-size:1.1rem">Compare every mode</h2>
+<p class="sub" style="margin:2px 0 0">Uses the current layers and opacity. Click one to select it.</p>
+<div class="all" id="all"></div>
+</main>
+
+<script>
+const MODES=[
+["Normal","normal","Top layer simply covers the base (reduced only by opacity).","result = top"],
+["Darken","darken","Keeps whichever pixel is darker, channel by channel. Lighter areas of the top layer disappear.","result = min(base, top)"],
+["Multiply","multiply","Multiplies the colors, so everything gets darker. White has no effect; black stays black. Great for shadows.","result = base × top"],
+["Color Burn","color-burn","Darkens the base and boosts contrast by increasing saturation. Strong, punchy shadows.","result = 1 − (1 − base) ÷ top"],
+["Lighten","lighten","Keeps whichever pixel is lighter. Darker areas of the top layer disappear.","result = max(base, top)"],
+["Screen","screen","The opposite of Multiply: everything gets lighter. Black has no effect; white stays white. Good for glows and light leaks.","result = 1 − (1 − base)(1 − top)"],
+["Color Dodge","color-dodge","Brightens the base and reduces contrast. Can blow out to pure white quickly.","result = base ÷ (1 − top)"],
+["Overlay","overlay","Multiplies the dark parts of the base and screens the light parts, boosting contrast while keeping the base’s highlights and shadows.","Multiply if base < 50%, else Screen"],
+["Soft Light","soft-light","A gentler Overlay. Lightens or darkens depending on the top color, like a diffused spotlight.","Similar to Overlay, but softer"],
+["Hard Light","hard-light","Like Overlay but decided by the top layer instead of the base. Harsh, like a bright spotlight.","Multiply if top < 50%, else Screen"],
+["Difference","difference","Subtracts one color from the other. Identical colors become black. Useful for comparing two images.","result = |base − top|"],
+["Exclusion","exclusion","Like Difference, but with lower contrast and softer, grayer mid-tones.","result = base + top − 2·base·top"],
+["Hue","hue","Uses the hue of the top layer with the saturation and brightness of the base.","hue(top) + sat(base) + lum(base)"],
+["Saturation","saturation","Uses the saturation of the top layer with the hue and brightness of the base.","sat(top) + hue(base) + lum(base)"],
+["Color","color","Uses the hue and saturation of the top layer with the brightness of the base. Handy for tinting or colorizing black and white images.","hue(top) + sat(top) + lum(base)"],
+["Luminosity","luminosity","Uses the brightness of the top layer with the hue and saturation of the base. The opposite of Color.","lum(top) + hue(base) + sat(base)"]
+];
+const PRESETS={
+ "Sunset":()=>"linear-gradient(180deg,#1b1b4b 0%,#7b2d8e 30%,#e8563f 60%,#ffb347 85%,#fff1b8 100%)",
+ "Spectrum":()=>"linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)",
+ "Gray ramp":()=>"linear-gradient(90deg,#000,#fff)",
+ "Spots":()=>"radial-gradient(circle at 25% 30%,#ff3b6b 0 22%,transparent 23%),radial-gradient(circle at 70% 35%,#ffd93b 0 20%,transparent 21%),radial-gradient(circle at 45% 75%,#2fd6c6 0 24%,transparent 25%),#3b2a6e",
+ "Checks":()=>"conic-gradient(#222 25%,#eee 0 50%,#222 0 75%,#eee 0) 0 0/20% 26.6%",
+ "Solid":c=>c
+};
+const S={mode:"multiply",top:"Spectrum",base:"Sunset"};
+const $=id=>document.getElementById(id);
+const bg=(n,which)=>PRESETS[n]($(which+"Color").value);
+
+function chips(el,key){
+  el.innerHTML="";
+  Object.keys(PRESETS).forEach(n=>{
+    const b=document.createElement("button");b.textContent=n;b.dataset.n=n;
+    b.onclick=()=>{S[key]=n;render()};el.appendChild(b);
+  });
+}
+function paint(el,key){el.style.background=bg(S[key],key==="top"?"top":"base")}
+
+function render(){
+  const m=MODES.find(x=>x[1]===S.mode), op=$("op").value/100;
+  paint($("base"),"base");paint($("top"),"top");
+  $("top").style.mixBlendMode=S.mode;$("top").style.opacity=op;
+  $("opv").textContent=$("op").value;$("mode").value=S.mode;
+  document.querySelectorAll("#topChips button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.n===S.top));
+  document.querySelectorAll("#baseChips button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.n===S.base));
+  $("desc").innerHTML=`<b>${m[0]}</b><br>${m[2]}<code>${m[3]}</code><code>mix-blend-mode: ${m[1]};</code>`;
+  document.querySelectorAll("#all .thumb").forEach(t=>{
+    t.firstChild.style.background=bg(S.base,"base");
+    t.lastChild.style.background=bg(S.top,"top");t.lastChild.style.opacity=op;
+  });
+  document.querySelectorAll("#all button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===S.mode));
+}
+
+MODES.forEach(m=>{
+  const o=document.createElement("option");o.value=m[1];o.textContent=m[0];$("mode").appendChild(o);
+  const b=document.createElement("button");b.dataset.m=m[1];
+  b.innerHTML=`<div class="thumb"><div class="layer"></div><div class="layer" style="mix-blend-mode:${m[1]}"></div></div>${m[0]}`;
+  b.onclick=()=>{S.mode=m[1];render()};$("all").appendChild(b);
+});
+chips($("topChips"),"top");chips($("baseChips"),"base");
+$("mode").onchange=e=>{S.mode=e.target.value;render()};
+$("op").oninput=render;$("topColor").oninput=render;$("baseColor").oninput=render;
+$("swap").onclick=()=>{
+  [S.top,S.base]=[S.base,S.top];
+  const t=$("topColor").value;$("topColor").value=$("baseColor").value;$("baseColor").value=t;render();
+};
+render();
+</script>
+</body>
+</html>
